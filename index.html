@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>線上研習專區</title>
+<style>
+:root{--bg:#f6f4ef;--card:#fff;--ink:#1d2b3a;--sub:#5b6775;--line:#d9d4c7;--brand:#1f4e79;--brand-ink:#fff;--accent:#f2b134;--danger:#b3261e;--ok:#1b6e3a;color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#14191f;--card:#1d242c;--ink:#e8ecf0;--sub:#9aa7b4;--line:#35404b;--brand:#6fa8dc;--brand-ink:#0d1620;--accent:#f2b134;--danger:#ff8a80;--ok:#7fd69a;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 "Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif}
+header{background:var(--brand);color:var(--brand-ink);border-bottom:4px solid var(--accent)}
+.wrap{max-width:1000px;margin:0 auto;padding:0 16px}
+header .wrap{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:space-between;padding-top:18px;padding-bottom:18px}
+h1{margin:0;font-size:1.5rem;letter-spacing:.04em}
+nav{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+#who{font-size:.95rem}
+button{font:inherit;cursor:pointer;border-radius:6px;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:6px 14px}
+button.primary{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+button.danger{color:var(--danger);border-color:var(--danger)}
+button.sm{padding:2px 10px;font-size:.9rem}
+header button{background:transparent;color:var(--brand-ink);border-color:currentColor}
+button:disabled{opacity:.6;cursor:wait}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+main{padding:20px 0 48px}
+#msg{min-height:1.6em;margin:0 0 8px;color:var(--sub)}
+#msg.err{color:var(--danger)}
+table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line)}
+th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:color-mix(in srgb,var(--brand) 10%,var(--card));font-weight:600}
+.tag{display:inline-block;font-size:.8rem;padding:0 8px;border-radius:10px;margin-left:6px;border:1px solid var(--line)}
+.tag.must{border-color:var(--danger);color:var(--danger)}
+.tag.rep{border-color:var(--brand);color:var(--brand)}
+.tag.hide{color:var(--sub)}
+.note{display:block;color:var(--sub);font-size:.88rem}
+.cnt{color:var(--sub);font-size:.88rem;display:block}
+.done{color:var(--ok);font-size:.88rem;display:block}
+a{color:var(--brand)}
+dialog{border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);padding:20px;width:min(420px,92vw)}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+dialog h2{margin:0 0 12px;font-size:1.2rem}
+label{display:block;margin:10px 0 2px;font-size:.95rem}
+input,textarea{width:100%;font:inherit;padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink)}
+select{font:inherit;padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink);max-width:100%}
+label.chk{display:flex;align-items:center;gap:8px;margin:6px 0}
+input[type=checkbox]{width:auto}
+input[type=file]{width:auto;max-width:100%;padding:4px}
+label.chk{flex-wrap:wrap}
+.row{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+.dmsg{min-height:1.4em;margin:8px 0 0;font-size:.92rem;color:var(--danger)}
+.dmsg.ok{color:var(--ok)}
+#mine{width:min(640px,94vw)}
+#mine table{font-size:.92rem}
+#dlgCourse{width:min(520px,94vw)}
+
+/* 管理後台 */
+.tabs{display:flex;gap:4px;flex-wrap:wrap;border-bottom:2px solid var(--line);margin-bottom:16px}
+.tabs button{border:0;border-radius:6px 6px 0 0;background:transparent;padding:8px 16px;border-bottom:3px solid transparent;margin-bottom:-2px}
+.tabs button[aria-selected=true]{font-weight:700;border-bottom-color:var(--brand);color:var(--brand)}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 12px}
+.bar .grow{flex:1}
+.stats{display:flex;gap:12px;flex-wrap:wrap;margin:12px 0}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 16px;min-width:110px}
+.stat b{display:block;font-size:1.6rem;line-height:1.2}
+.stat.ok b{color:var(--ok)}
+.stat.bad b{color:var(--danger)}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+.cols h3{margin:0 0 6px;font-size:1.05rem}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px;margin-bottom:12px}
+.card h3{margin:0 0 4px;font-size:1.05rem}
+.card p{margin:0 0 10px;color:var(--sub);font-size:.92rem}
+.empty{padding:16px;color:var(--sub);text-align:center}
+textarea.paste{min-height:140px;font:.9rem/1.5 ui-monospace,Menlo,Consolas,monospace;white-space:pre}
+.hint{color:var(--sub);font-size:.9rem;margin:0 0 10px}
+.hint code{background:color-mix(in srgb,var(--brand) 10%,var(--card));padding:0 6px;border-radius:4px}
+.st{display:inline-block;font-size:.8rem;padding:0 8px;border-radius:10px;border:1px solid currentColor;white-space:nowrap}
+.st.add{color:var(--ok)}.st.upd{color:var(--brand)}.st.bad{color:var(--danger)}
+tr.bad td{color:var(--sub)}
+.scroll{max-height:340px;overflow:auto;border:1px solid var(--line);border-radius:6px}
+.scroll table{border:0}
+.result{border-left:4px solid var(--ok)}
+@media (max-width:760px){.cols{grid-template-columns:1fr}}
+@media (max-width:640px){
+ table.stack thead{display:none}
+ table.stack,table.stack tbody,table.stack tr,table.stack td{display:block;width:100%}
+ table.stack tr{border-bottom:2px solid var(--line);padding:8px 0}
+ table.stack td{border:0;padding:4px 12px}
+ table.stack td[data-l]::before{content:attr(data-l) "：";color:var(--sub);font-size:.85rem}
+}
+@media (prefers-reduced-motion:no-preference){button{transition:filter .15s}button:hover:not(:disabled){filter:brightness(.95)}}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <h1>線上研習專區</h1>
+  <nav>
+    <span id="who" hidden></span>
+    <button id="btnAdmin" hidden>管理後台</button>
+    <button id="btnMine" hidden>我的回報</button>
+    <button id="btnLogin">登入</button>
+    <button id="btnLogout" hidden>登出</button>
+  </nav>
+</div></header>
+
+<main class="wrap">
+  <p id="msg" role="status">載入中…</p>
+
+  <!-- 一般檢視：研習清單 -->
+  <section id="viewList">
+    <table class="stack">
+      <thead><tr><th>研習名稱</th><th>研習平台</th><th>研習時間</th><th>完成回報</th></tr></thead>
+      <tbody id="list"></tbody>
+    </table>
+  </section>
+
+  <!-- 管理後台 -->
+  <section id="viewAdmin" hidden>
+    <div class="tabs" role="tablist" aria-label="管理功能">
+      <button role="tab" data-tab="courses" aria-selected="true">研習項目</button>
+      <button role="tab" data-tab="status" aria-selected="false">完成狀況</button>
+      <button role="tab" data-tab="users" aria-selected="false">教師帳號</button>
+      <button role="tab" data-tab="export" aria-selected="false">匯出資料</button>
+    </div>
+    <div id="adminBody"></div>
+  </section>
+</main>
+
+<dialog id="dlgLogin">
+  <form id="fLogin" method="dialog" novalidate>
+    <h2>登入</h2>
+    <label for="acc">帳號</label>
+    <input id="acc" autocomplete="username" required>
+    <label for="pw">密碼</label>
+    <input id="pw" type="password" autocomplete="current-password" required>
+    <p class="dmsg" id="mLogin" role="alert"></p>
+    <div class="row"><button type="button" data-close>取消</button><button class="primary" id="okLogin">登入</button></div>
+  </form>
+</dialog>
+
+<dialog id="dlgReport">
+  <form id="fReport" method="dialog" novalidate>
+    <h2>完成回報</h2>
+    <p id="rName" style="margin:0"></p>
+    <label for="rDate">完成日期</label>
+    <input id="rDate" type="date" required>
+    <label for="rHours">研習時數</label>
+    <input id="rHours" type="number" min="0.5" max="100" step="0.5" required>
+    <label for="rNote">備註（選填）</label>
+    <textarea id="rNote" rows="2" maxlength="200"></textarea>
+    <p class="dmsg" id="mReport" role="alert"></p>
+    <div class="row"><button type="button" data-close>取消</button><button class="primary" id="okReport">送出回報</button></div>
+  </form>
+</dialog>
+
+<dialog id="mine">
+  <h2>我的回報紀錄</h2>
+  <div style="overflow-x:auto"><table><thead><tr><th>研習</th><th>完成日期</th><th>時數</th><th>備註</th></tr></thead><tbody id="mineList"></tbody></table></div>
+  <div class="row"><button type="button" data-close>關閉</button></div>
+</dialog>
+
+<dialog id="dlgCourse">
+  <form id="fCourse" method="dialog" novalidate>
+    <h2 id="cTitle">新增研習</h2>
+    <label for="cName">研習名稱 *</label>
+    <input id="cName" maxlength="100" required>
+    <label for="cPlat">研習平台</label>
+    <input id="cPlat" maxlength="60" placeholder="例：臺北e學院">
+    <label for="cUrl">平台網址</label>
+    <input id="cUrl" type="url" placeholder="https://…">
+    <label for="cTime">研習時間 / 期限</label>
+    <input id="cTime" maxlength="100" placeholder="例：115年12月31日前">
+    <label for="cNote">說明（選填）</label>
+    <textarea id="cNote" rows="2" maxlength="300"></textarea>
+    <label class="chk"><input type="checkbox" id="cReq"> 必要研習</label>
+    <label class="chk"><input type="checkbox" id="cRep"> 需要回報（老師可按「按此回報」）</label>
+    <label class="chk"><input type="checkbox" id="cVis"> 顯示在首頁</label>
+    <p class="dmsg" id="mCourse" role="alert"></p>
+    <div class="row"><button type="button" data-close>取消</button><button class="primary" id="okCourse">儲存</button></div>
+  </form>
+</dialog>
+
+<script>
+// ★ 部署 Apps Script 後，把「網頁應用程式網址」貼在這裡
+const API_URL = 'https://script.google.com/macros/s/AKfycbz0DfjY8GHwWnHjZpOzzqrwl5n416bzVKmWwhTmjdOXYnYNAPRXk6ACLayMa78Z8OmF/exec';
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const safeUrl = u => /^https?:\/\//i.test(u) ? u : '';
+
+const mem = {};
+const store = {
+  get(k){ try { return sessionStorage.getItem(k); } catch(e){ return mem[k] || null; } },
+  set(k,v){ try { sessionStorage.setItem(k,v); } catch(e){ mem[k] = v; } },
+  del(k){ try { sessionStorage.removeItem(k); } catch(e){ delete mem[k]; } }
+};
+
+const state = {
+  token: store.get('token'), user: null, courses: [], pending: null, current: null,
+  mine: new Set(), view: 'list',
+  admin: { data: null, tab: 'courses', cid: null },
+  imp: { text: '', overwrite: true, rows: [], result: null }
+};
+try { state.user = JSON.parse(store.get('user') || 'null'); } catch(e){}
+if (!state.token) state.user = null;
+const isAdmin = () => !!state.user && state.user.role === 'admin';
+
+async function api(action, data = {}) {
+  if (!/^https:\/\//.test(API_URL)) throw new Error('尚未設定 API_URL，請見 README 步驟 3');
+  const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action, token: state.token, ...data }) });
+  if (!res.ok) throw new Error('伺服器回應錯誤（' + res.status + '）');
+  const j = await res.json();
+  if (!j.ok) {
+    if (j.code === 'auth') { clearSession(); render(); }
+    throw new Error(j.error || '發生未知錯誤');
+  }
+  return j;
+}
+
+function clearSession(){ state.token = null; state.user = null; state.mine = new Set(); state.view = 'list'; state.admin.data = null; store.del('token'); store.del('user'); }
+function setMsg(t, err){ const m = $('#msg'); m.textContent = t; m.className = err ? 'err' : ''; }
+function dmsg(id, t, ok){ const m = $(id); m.textContent = t; m.className = 'dmsg' + (ok ? ' ok' : ''); }
+function today(){ const d = new Date(); return new Date(d - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); }
+
+/* ───────────── 一般教師畫面 ───────────── */
+function render() {
+  const u = state.user;
+  if (!isAdmin()) state.view = 'list';
+  $('#who').hidden = $('#btnMine').hidden = $('#btnLogout').hidden = !u;
+  $('#btnLogin').hidden = !!u;
+  $('#btnAdmin').hidden = !isAdmin();
+  $('#btnAdmin').textContent = state.view === 'admin' ? '回研習清單' : '管理後台';
+  if (u) $('#who').textContent = u.name + (isAdmin() ? '（管理員）' : '') + '，您好';
+  $('#viewList').hidden = state.view !== 'list';
+  $('#viewAdmin').hidden = state.view !== 'admin';
+  $('#list').innerHTML = state.courses.map(c => {
+    const plat = safeUrl(c.platformUrl) ? `<a href="${esc(c.platformUrl)}" target="_blank" rel="noopener noreferrer">${esc(c.platform || '前往')}</a>` : esc(c.platform);
+    const tags = (c.required ? '<span class="tag must">必要</span>' : '') + (c.needReport ? '<span class="tag rep">要回報</span>' : '');
+    const mine = state.mine.has(c.id);
+    const act = c.needReport
+      ? `<button class="primary" data-id="${esc(c.id)}">${mine ? '修改回報' : '按此回報'}</button>${mine ? '<span class="done">✓ 您已回報</span>' : ''}<span class="cnt">（${c.count} 人回報）</span>`
+      : '<span class="cnt">不需回報</span>';
+    return `<tr><td data-l="研習名稱"><strong>${esc(c.name)}</strong>${tags}${c.note ? `<span class="note">${esc(c.note)}</span>` : ''}</td>` +
+      `<td data-l="研習平台">${plat}</td><td data-l="研習時間">${esc(c.time)}</td><td data-l="完成回報">${act}</td></tr>`;
+  }).join('');
+  if (state.view === 'admin') renderAdmin();
+}
+
+async function loadCourses() {
+  setMsg('載入中…');
+  try {
+    state.courses = (await api('courses')).courses;
+    setMsg(state.courses.length ? '' : '目前沒有研習項目');
+  } catch (e) { setMsg('無法載入研習清單：' + e.message, true); }
+  render();
+}
+
+async function loadMine() {
+  if (!state.user) return;
+  try { state.mine = new Set((await api('myReports')).reports.map(r => r.courseId)); render(); } catch (e) {}
+}
+
+function openReport(id) {
+  const c = state.courses.find(x => x.id === id);
+  if (!c) return;
+  state.current = c;
+  $('#rName').textContent = c.name;
+  $('#rDate').value = today(); $('#rDate').max = today();
+  $('#rHours').value = ''; $('#rNote').value = ''; dmsg('#mReport', '');
+  $('#dlgReport').showModal();
+}
+
+document.addEventListener('click', e => {
+  if (e.target.closest('[data-close]')) e.target.closest('dialog').close();
+  const b = e.target.closest('#list button[data-id]');
+  if (!b) return;
+  if (!state.user) { state.pending = b.dataset.id; dmsg('#mLogin', ''); $('#dlgLogin').showModal(); }
+  else openReport(b.dataset.id);
+});
+
+$('#btnLogin').onclick = () => { state.pending = null; dmsg('#mLogin', ''); $('#dlgLogin').showModal(); };
+$('#btnLogout').onclick = async () => {
+  try { await api('logout'); } catch (e) {}
+  clearSession(); render();
+};
+
+$('#fLogin').addEventListener('submit', async e => {
+  e.preventDefault();
+  const account = $('#acc').value.trim(), password = $('#pw').value;
+  if (!account || !password) return dmsg('#mLogin', '請輸入帳號與密碼');
+  const btn = $('#okLogin'); btn.disabled = true; dmsg('#mLogin', '登入中…', true);
+  try {
+    const j = await api('login', { account, password });
+    state.token = j.token; state.user = j.user;
+    store.set('token', j.token); store.set('user', JSON.stringify(j.user));
+    $('#pw').value = ''; $('#dlgLogin').close(); render(); loadMine();
+    if (state.pending) { const id = state.pending; state.pending = null; openReport(id); }
+  } catch (err) { dmsg('#mLogin', err.message); }
+  btn.disabled = false;
+});
+
+$('#fReport').addEventListener('submit', async e => {
+  e.preventDefault();
+  const date = $('#rDate').value, hours = Number($('#rHours').value);
+  if (!date) return dmsg('#mReport', '請選擇完成日期');
+  if (!(hours > 0 && hours <= 100)) return dmsg('#mReport', '請輸入正確的研習時數');
+  const btn = $('#okReport'); btn.disabled = true; dmsg('#mReport', '送出中…', true);
+  try {
+    const j = await api('report', { courseId: state.current.id, date, hours, note: $('#rNote').value });
+    dmsg('#mReport', j.updated ? '已更新您的回報' : '回報完成，謝謝！', true);
+    state.mine.add(state.current.id);
+    await loadCourses();
+    setTimeout(() => $('#dlgReport').close(), 900);
+  } catch (err) { dmsg('#mReport', err.message); }
+  btn.disabled = false;
+});
+
+$('#btnMine').onclick = async () => {
+  $('#mineList').innerHTML = '<tr><td colspan="4">載入中…</td></tr>';
+  $('#mine').showModal();
+  try {
+    const r = (await api('myReports')).reports;
+    $('#mineList').innerHTML = r.length
+      ? r.map(x => `<tr><td>${esc(x.name)}</td><td>${esc(x.date)}</td><td>${esc(x.hours)}</td><td>${esc(x.note)}</td></tr>`).join('')
+      : '<tr><td colspan="4">尚無回報紀錄</td></tr>';
+  } catch (e) { $('#mineList').innerHTML = `<tr><td colspan="4">${esc(e.message)}</td></tr>`; }
+};
+
+/* ───────────── CSV 匯出（加 BOM，Excel 開啟中文不亂碼） ───────────── */
+function toCsv(rows) {
+  const cell = c => {
+    let s = String(c ?? '');
+    if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;             // 避免 Excel 把文字當公式執行
+    return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  return '﻿' + rows.map(r => r.map(cell).join(',')).join('\r\n');
+}
+function downloadCsv(name, rows) {
+  const blob = new Blob([toCsv(rows)], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name.replace(/[\\/:*?"<>|]/g, '_') + '.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+/* ───────────── 管理後台 ───────────── */
+const byUnit = (a, b) => (a.unit || '').localeCompare(b.unit || '', 'zh-Hant') || a.account.localeCompare(b.account, 'zh-Hant');
+const roster = () => state.admin.data.users.filter(u => u.role !== 'admin').sort(byUnit);
+const reportCourses = () => state.admin.data.courses.filter(c => c.needReport);
+
+function statusOf(cid) {
+  const reps = new Map(state.admin.data.reports.filter(r => r.courseId === cid).map(r => [r.account, r]));
+  const all = roster();
+  return {
+    done: all.filter(u => reps.has(u.account)).map(u => ({ ...u, r: reps.get(u.account) })),
+    todo: all.filter(u => !reps.has(u.account)),
+    total: all.length
+  };
+}
+
+async function openAdmin() {
+  state.view = 'admin'; render();
+  setMsg('載入管理資料…');
+  try { state.admin.data = await api('adminData'); setMsg(''); }
+  catch (e) { setMsg('無法載入管理資料：' + e.message, true); }
+  render();
+}
+$('#btnAdmin').onclick = () => {
+  if (state.view === 'admin') { state.view = 'list'; render(); loadCourses(); }
+  else openAdmin();
+};
+
+document.querySelectorAll('.tabs [data-tab]').forEach(b => b.onclick = () => {
+  state.admin.tab = b.dataset.tab; renderAdmin();
+});
+
+function renderAdmin() {
+  document.querySelectorAll('.tabs [data-tab]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === state.admin.tab)));
+  const body = $('#adminBody'), d = state.admin.data;
+  if (!d) { body.innerHTML = ''; return; }
+  if (state.admin.tab === 'courses') body.innerHTML = tabCourses(d);
+  else if (state.admin.tab === 'status') body.innerHTML = tabStatus(d);
+  else if (state.admin.tab === 'users') { body.innerHTML = tabUsers(d); updatePreview(); }
+  else body.innerHTML = tabExport(d);
+}
+
+function tabCourses(d) {
+  const rows = d.courses.map(c => {
+    const tags = (c.required ? '<span class="tag must">必要</span>' : '') + (c.needReport ? '<span class="tag rep">要回報</span>' : '') + (c.visible ? '' : '<span class="tag hide">已隱藏</span>');
+    return `<tr><td data-l="研習名稱"><strong>${esc(c.name)}</strong>${tags}${c.note ? `<span class="note">${esc(c.note)}</span>` : ''}</td>` +
+      `<td data-l="平台">${esc(c.platform)}</td><td data-l="時間">${esc(c.time)}</td>` +
+      `<td data-l="回報人數">${c.needReport ? c.count : '—'}</td>` +
+      `<td><button class="sm" data-act="edit" data-id="${esc(c.id)}">編輯</button> ` +
+      `<button class="sm" data-act="toggle" data-id="${esc(c.id)}">${c.visible ? '隱藏' : '顯示'}</button> ` +
+      `<button class="sm danger" data-act="del" data-id="${esc(c.id)}">刪除</button></td></tr>`;
+  }).join('');
+  return `<div class="bar"><span class="grow">共 ${d.courses.length} 個研習項目（含隱藏）</span><button class="primary" data-act="new">＋ 新增研習</button></div>` +
+    (d.courses.length
+      ? `<table class="stack"><thead><tr><th>研習名稱</th><th>平台</th><th>時間</th><th>回報人數</th><th>操作</th></tr></thead><tbody>${rows}</tbody></table>`
+      : '<div class="empty">尚無研習項目，請按「新增研習」。</div>');
+}
+
+function tabStatus(d) {
+  const list = reportCourses();
+  if (!list.length) return '<div class="empty">目前沒有「需要回報」的研習。</div>';
+  if (!list.some(c => c.id === state.admin.cid)) state.admin.cid = list[0].id;
+  const c = list.find(x => x.id === state.admin.cid), s = statusOf(c.id);
+  const opts = list.map(x => `<option value="${esc(x.id)}"${x.id === c.id ? ' selected' : ''}>${esc(x.name)}${x.visible ? '' : '（已隱藏）'}</option>`).join('');
+  const doneRows = s.done.map(u => `<tr><td data-l="姓名">${esc(u.name)}</td><td data-l="處室">${esc(u.unit)}</td><td data-l="完成日期">${esc(u.r.date)}</td><td data-l="時數">${esc(u.r.hours)}</td></tr>`).join('');
+  const todoRows = s.todo.map(u => `<tr><td data-l="姓名">${esc(u.name)}</td><td data-l="處室">${esc(u.unit)}</td><td data-l="帳號">${esc(u.account)}</td></tr>`).join('');
+  const pct = s.total ? Math.round(s.done.length / s.total * 100) : 0;
+  return `<div class="bar"><label for="selCourse" style="margin:0">選擇研習：</label><select id="selCourse" class="grow">${opts}</select></div>` +
+    `<div class="stats"><div class="stat">應回報<b>${s.total}</b></div><div class="stat ok">已完成<b>${s.done.length}</b></div><div class="stat bad">未完成<b>${s.todo.length}</b></div><div class="stat">完成率<b>${pct}%</b></div></div>` +
+    `<div class="bar"><button data-act="exp-done">匯出已完成名單</button><button data-act="exp-todo">匯出未完成名單</button><button data-act="exp-all">匯出全部（含狀態）</button></div>` +
+    `<div class="cols"><div><h3>已完成（${s.done.length}）</h3>${s.done.length ? `<table class="stack"><thead><tr><th>姓名</th><th>處室</th><th>完成日期</th><th>時數</th></tr></thead><tbody>${doneRows}</tbody></table>` : '<div class="empty">尚無人回報</div>'}</div>` +
+    `<div><h3>未完成（${s.todo.length}）</h3>${s.todo.length ? `<table class="stack"><thead><tr><th>姓名</th><th>處室</th><th>帳號</th></tr></thead><tbody>${todoRows}</tbody></table>` : '<div class="empty">全部都完成了 🎉</div>'}</div></div>`;
+}
+
+function tabExport(d) {
+  return `<div class="card"><h3>完成狀況總表</h3><p>每位教師一列、每個「需要回報且顯示中」的研習一欄（已隱藏的研習不列入），已完成顯示完成日期，未完成顯示「未完成」，最後附完成／未完成數量。</p><button class="primary" data-act="exp-matrix">匯出總表 CSV</button></div>` +
+    `<div class="card"><h3>回報明細</h3><p>所有教師的回報紀錄（回報時間、帳號、姓名、處室、研習、完成日期、時數、備註）。</p><button class="primary" data-act="exp-detail">匯出明細 CSV</button></div>` +
+    `<div class="card"><h3>教師名單</h3><p>目前列入統計的教師共 ${roster().length} 人（角色為管理員的帳號不列入）。</p><button data-act="exp-roster">匯出名單 CSV</button></div>`;
+}
+
+
+/* ───────────── 教師帳號：批次匯入 ───────────── */
+const KEYS = { '帳號': 'account', '密碼': 'password', '姓名': 'name', '處室': 'unit', '角色': 'role' };
+
+function parseTable(text) {
+  text = text.replace(/^﻿/, '');
+  const first = text.split(/\r?\n/).find(l => l.trim()) || '';
+  const d = first.includes('\t') ? '\t' : ',';
+  const rows = []; let row = [], cur = '', q = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (q) { if (ch === '"') { if (text[i + 1] === '"') { cur += '"'; i++; } else q = false; } else cur += ch; }
+    else if (ch === '"' && cur === '') q = true;
+    else if (ch === d) { row.push(cur); cur = ''; }
+    else if (ch === '\n' || ch === '\r') { if (ch === '\r' && text[i + 1] === '\n') i++; row.push(cur); cur = ''; rows.push(row); row = []; }
+    else cur += ch;
+  }
+  row.push(cur); rows.push(row);
+  return rows.filter(r => r.some(c => c.trim() !== ''));
+}
+
+/* 有標題列就依欄名對應；沒有就依「帳號、密碼、姓名、處室」順序 */
+function analyze(text, overwrite) {
+  const rows = parseTable(text);
+  let map = ['account', 'password', 'name', 'unit', 'role'];
+  if (rows.length && rows[0].some(c => KEYS[c.trim()])) map = rows.shift().map(c => KEYS[c.trim()] || null);
+  const exist = new Set(state.admin.data.users.map(u => u.account)), seen = new Set();
+  return rows.map((r, i) => {
+    const u = { n: i + 1 };
+    map.forEach((k, j) => { if (k) u[k] = (r[j] ?? '').trim(); });
+    const acc = u.account || '', pw = u.password || '';
+    let st = exist.has(acc) ? 'upd' : 'add', why = '';
+    if (!acc) { st = 'bad'; why = '缺少帳號'; }
+    else if (acc.length > 50 || /\s/.test(acc) || /^[=+\-@]/.test(acc)) { st = 'bad'; why = '帳號格式不正確'; }
+    else if (seen.has(acc)) { st = 'bad'; why = '帳號在名單中重複'; }
+    else if (pw && (pw.length < 4 || pw.length > 64)) { st = 'bad'; why = '密碼需 4 到 64 碼'; }
+    else if (st === 'upd' && !overwrite) { st = 'bad'; why = '帳號已存在（已略過）'; }
+    else if (st === 'add' && !u.name) { st = 'bad'; why = '缺少姓名'; }
+    if (acc) seen.add(acc);
+    u.st = st; u.why = why;
+    return u;
+  });
+}
+
+function tabUsers(d) {
+  const im = state.imp;
+  const res = im.result ? `<div class="card result"><h3>匯入完成</h3><p>新增 ${im.result.added} 人、更新 ${im.result.updated} 人${im.result.skipped.length ? `、略過 ${im.result.skipped.length} 筆` : ''}。</p>` +
+    (im.result.skipped.length ? `<p style="color:var(--danger)">${im.result.skipped.map(esc).join('<br>')}</p>` : '') +
+    (im.result.generated.length ? `<p>有 ${im.result.generated.length} 位老師的密碼是系統自動產生的，<b>只會在這裡顯示一次</b>，請現在下載並妥善保存。</p><button class="primary" data-act="exp-gen">下載帳號密碼清單 CSV</button>` : '') + '</div>' : '';
+  return res +
+    `<div class="card"><h3>批次匯入教師名單</h3>` +
+    `<p class="hint">從 Excel 複製（或上傳 CSV），欄位順序：<code>帳號</code> <code>密碼</code> <code>姓名</code> <code>處室</code>，第一列可以有標題。<b>密碼留空 → 自動產生</b>。</p>` +
+    `<div class="bar"><button data-act="tpl">下載範本 CSV</button><label class="chk" style="margin:0"><span>或上傳檔案：</span><input type="file" id="impFile" accept=".csv,.txt,.tsv" style="width:auto"></label></div>` +
+    `<label for="impText" class="hint" style="margin:0 0 2px">貼上名單（每位老師一行）</label>` +
+    `<textarea id="impText" class="paste" spellcheck="false" placeholder="帳號\t密碼\t姓名\t處室&#10;t001\t\t王小明\t教務處&#10;t002\tabc12345\t李小華\t總務處">${esc(im.text)}</textarea>` +
+    `<label class="chk"><input type="checkbox" id="impOver"${im.overwrite ? ' checked' : ''}> 帳號已存在時，更新姓名與處室（密碼有填才更新）</label>` +
+    `<div id="impPreview"></div></div>` +
+    `<div class="card"><h3>目前帳號（${d.users.length}）</h3><div class="bar"><input id="usrQ" type="search" placeholder="搜尋姓名、帳號、處室" style="max-width:320px"></div><div id="usrList"></div></div>`;
+}
+
+function updatePreview() {
+  const box = $('#impPreview'); if (!box) return;
+  const im = state.imp;
+  im.rows = im.text.trim() ? analyze(im.text, im.overwrite) : [];
+  if (!im.rows.length) { box.innerHTML = ''; }
+  else {
+    const c = k => im.rows.filter(r => r.st === k).length, ok = c('add') + c('upd');
+    const label = { add: '新增', upd: '更新', bad: '略過' };
+    const tr = im.rows.slice(0, 300).map(r => `<tr class="${r.st === 'bad' ? 'bad' : ''}"><td data-l="#">${r.n}</td><td data-l="帳號">${esc(r.account)}</td>` +
+      `<td data-l="密碼">${r.password ? '••••••' : (r.st === 'upd' ? '（不變）' : r.st === 'add' ? '（自動產生）' : '')}</td><td data-l="姓名">${esc(r.name)}</td><td data-l="處室">${esc(r.unit)}</td>` +
+      `<td data-l="狀態"><span class="st ${r.st}">${label[r.st]}</span>${r.why ? ` <span class="note" style="display:inline">${esc(r.why)}</span>` : ''}</td></tr>`).join('');
+    box.innerHTML = `<div class="stats"><div class="stat ok">新增<b>${c('add')}</b></div><div class="stat">更新<b>${c('upd')}</b></div><div class="stat bad">略過<b>${c('bad')}</b></div></div>` +
+      `<div class="scroll"><table class="stack"><thead><tr><th>#</th><th>帳號</th><th>密碼</th><th>姓名</th><th>處室</th><th>狀態</th></tr></thead><tbody>${tr}</tbody></table></div>` +
+      (im.rows.length > 300 ? `<p class="hint">僅預覽前 300 筆，共 ${im.rows.length} 筆。</p>` : '') +
+      `<div class="row"><button data-act="imp-clear">清除</button><button class="primary" data-act="imp-go"${ok ? '' : ' disabled'}>確認匯入 ${ok} 筆</button></div>`;
+  }
+  updateUserList();
+}
+
+function updateUserList() {
+  const box = $('#usrList'); if (!box) return;
+  const q = ($('#usrQ')?.value || '').trim().toLowerCase();
+  const list = state.admin.data.users.filter(u => !q || [u.name, u.account, u.unit].some(x => (x || '').toLowerCase().includes(q))).sort(byUnit);
+  box.innerHTML = list.length
+    ? `<div class="scroll"><table class="stack"><thead><tr><th>姓名</th><th>帳號</th><th>處室</th><th>角色</th><th></th></tr></thead><tbody>` +
+      list.map(u => `<tr><td data-l="姓名">${esc(u.name)}</td><td data-l="帳號">${esc(u.account)}</td><td data-l="處室">${esc(u.unit)}</td><td data-l="角色">${u.role === 'admin' ? '管理員' : '教師'}</td>` +
+        `<td>${u.account === state.user.account ? '' : `<button class="sm danger" data-act="deluser" data-acc="${esc(u.account)}">刪除</button>`}</td></tr>`).join('') + '</tbody></table></div>'
+    : '<div class="empty">沒有符合的帳號</div>';
+}
+
+async function readFileText(f) {
+  const buf = await f.arrayBuffer();
+  try { return new TextDecoder('utf-8', { fatal: true }).decode(buf); }
+  catch (e) { return new TextDecoder('big5').decode(buf); }   // Excel 另存的 CSV 常是 Big5
+}
+
+async function doImport(btn) {
+  const rows = state.imp.rows.filter(r => r.st !== 'bad');
+  if (!rows.length) return;
+  btn.disabled = true; setMsg('匯入中…');
+  try {
+    const j = await api('importUsers', { overwrite: state.imp.overwrite, users: rows.map(({ account, password, name, unit, role }) => ({ account, password, name, unit, role })) });
+    state.imp.result = j; state.imp.text = ''; state.imp.rows = [];
+    setMsg(''); await refreshAdmin();
+  } catch (e) { setMsg(e.message, true); btn.disabled = false; }
+}
+
+function exportCourse(kind) {
+  const c = state.admin.data.courses.find(x => x.id === state.admin.cid); if (!c) return;
+  const s = statusOf(c.id), head = ['姓名', '帳號', '處室'];
+  const doneRow = u => [u.name, u.account, u.unit, '已完成', u.r.date, u.r.hours, u.r.note];
+  const todoRow = u => [u.name, u.account, u.unit, '未完成', '', '', ''];
+  const H = ['姓名', '帳號', '處室', '狀態', '完成日期', '時數', '備註'];
+  if (kind === 'done') downloadCsv(c.name + '_已完成名單', [H, ...s.done.map(doneRow)]);
+  else if (kind === 'todo') downloadCsv(c.name + '_未完成名單', [head, ...s.todo.map(u => [u.name, u.account, u.unit])]);
+  else {
+    const all = [...s.done.map(u => ({ u, row: doneRow(u) })), ...s.todo.map(u => ({ u, row: todoRow(u) }))].sort((a, b) => byUnit(a.u, b.u));
+    downloadCsv(c.name + '_完成狀況', [H, ...all.map(x => x.row)]);
+  }
+}
+
+function exportMatrix() {
+  const d = state.admin.data, cs = reportCourses().filter(c => c.visible); // 已隱藏（封存）的研習不放進總表
+  const map = new Map(d.reports.map(r => [r.account + '|' + r.courseId, r]));
+  const rows = roster().map(u => {
+    const cells = cs.map(c => { const r = map.get(u.account + '|' + c.id); return r ? r.date : '未完成'; });
+    const n = cells.filter(x => x !== '未完成').length;
+    return [u.name, u.account, u.unit, ...cells, n, cs.length - n];
+  });
+  downloadCsv('研習完成狀況總表_' + today(), [['姓名', '帳號', '處室', ...cs.map(c => c.name), '已完成數', '未完成數'], ...rows]);
+}
+
+function exportDetail() {
+  const d = state.admin.data, unit = new Map(d.users.map(u => [u.account, u.unit]));
+  downloadCsv('研習回報明細_' + today(), [
+    ['回報時間', '帳號', '姓名', '處室', '研習ID', '研習名稱', '完成日期', '時數', '備註'],
+    ...d.reports.map(r => [r.at, r.account, r.name, unit.get(r.account) || '', r.courseId, r.courseName, r.date, r.hours, r.note])
+  ]);
+}
+
+function exportRoster() {
+  downloadCsv('教師名單_' + today(), [['姓名', '帳號', '處室'], ...roster().map(u => [u.name, u.account, u.unit])]);
+}
+
+/* 管理後台：事件委派 */
+$('#adminBody').addEventListener('change', async e => {
+  if (e.target.id === 'selCourse') { state.admin.cid = e.target.value; renderAdmin(); }
+  else if (e.target.id === 'impOver') { state.imp.overwrite = e.target.checked; updatePreview(); }
+  else if (e.target.id === 'impFile' && e.target.files[0]) {
+    state.imp.text = await readFileText(e.target.files[0]); state.imp.result = null;
+    $('#impText').value = state.imp.text; updatePreview(); e.target.value = '';
+  }
+});
+$('#adminBody').addEventListener('input', e => {
+  if (e.target.id === 'impText') { state.imp.text = e.target.value; state.imp.result = null; updatePreview(); }
+  else if (e.target.id === 'usrQ') updateUserList();
+});
+$('#adminBody').addEventListener('click', async e => {
+  const b = e.target.closest('[data-act]'); if (!b) return;
+  const act = b.dataset.act, id = b.dataset.id;
+  const c = id && state.admin.data.courses.find(x => x.id === id);
+  if (act === 'new') openCourse(null);
+  else if (act === 'edit' && c) openCourse(c);
+  else if (act === 'toggle' && c) {
+    b.disabled = true;
+    try { await api('saveCourse', { course: { ...c, visible: !c.visible } }); await refreshAdmin(); }
+    catch (err) { setMsg(err.message, true); b.disabled = false; }
+  } else if (act === 'del' && c) {
+    if (!confirm(`確定要刪除「${c.name}」嗎？\n\n已送出的回報紀錄仍會保留在試算表，但此研習將從清單消失。\n若只是暫時不想顯示，建議改用「隱藏」。`)) return;
+    b.disabled = true;
+    try { await api('deleteCourse', { courseId: c.id }); await refreshAdmin(); }
+    catch (err) { setMsg(err.message, true); b.disabled = false; }
+  }
+  else if (act === 'tpl') downloadCsv('教師名單匯入範本', [['帳號', '密碼', '姓名', '處室'], ['t001', '', '王小明', '教務處'], ['t002', 'abc12345', '李小華', '總務處']]);
+  else if (act === 'imp-clear') { state.imp.text = ''; $('#impText').value = ''; updatePreview(); }
+  else if (act === 'imp-go') doImport(b);
+  else if (act === 'exp-gen') downloadCsv('新帳號密碼清單_' + today(), [['帳號', '密碼', '姓名', '處室'], ...state.imp.result.generated.map(g => [g.account, g.password, g.name, g.unit])]);
+  else if (act === 'deluser') {
+    const acc = b.dataset.acc, u = state.admin.data.users.find(x => x.account === acc); if (!u) return;
+    if (!confirm(`確定要刪除帳號「${u.name}（${u.account}）」嗎？\n\n已送出的回報紀錄仍會保留在試算表。`)) return;
+    b.disabled = true;
+    try { await api('deleteUser', { account: acc }); await refreshAdmin(); } catch (err) { setMsg(err.message, true); b.disabled = false; }
+  }
+  else if (act === 'exp-done') exportCourse('done');
+  else if (act === 'exp-todo') exportCourse('todo');
+  else if (act === 'exp-all') exportCourse('all');
+  else if (act === 'exp-matrix') exportMatrix();
+  else if (act === 'exp-detail') exportDetail();
+  else if (act === 'exp-roster') exportRoster();
+});
+
+async function refreshAdmin() {
+  setMsg('');
+  try { state.admin.data = await api('adminData'); } catch (e) { setMsg(e.message, true); }
+  render();
+}
+
+/* 新增 / 編輯研習 */
+let editingId = null;
+function openCourse(c) {
+  editingId = c ? c.id : null;
+  $('#cTitle').textContent = c ? '編輯研習' : '新增研習';
+  $('#cName').value = c ? c.name : '';
+  $('#cPlat').value = c ? c.platform : '';
+  $('#cUrl').value = c ? c.platformUrl : '';
+  $('#cTime').value = c ? c.time : '';
+  $('#cNote').value = c ? c.note : '';
+  $('#cReq').checked = c ? c.required : false;
+  $('#cRep').checked = c ? c.needReport : true;
+  $('#cVis').checked = c ? c.visible : true;
+  dmsg('#mCourse', '');
+  $('#dlgCourse').showModal();
+}
+$('#fCourse').addEventListener('submit', async e => {
+  e.preventDefault();
+  const course = {
+    id: editingId, name: $('#cName').value.trim(), platform: $('#cPlat').value.trim(), platformUrl: $('#cUrl').value.trim(),
+    time: $('#cTime').value.trim(), note: $('#cNote').value.trim(),
+    required: $('#cReq').checked, needReport: $('#cRep').checked, visible: $('#cVis').checked
+  };
+  if (!course.name) return dmsg('#mCourse', '請輸入研習名稱');
+  const btn = $('#okCourse'); btn.disabled = true; dmsg('#mCourse', '儲存中…', true);
+  try {
+    await api('saveCourse', { course });
+    $('#dlgCourse').close();
+    await refreshAdmin();
+  } catch (err) { dmsg('#mCourse', err.message); }
+  btn.disabled = false;
+});
+
+render();
+loadCourses();
+if (state.user) loadMine();
+</script>
+</body>
+</html>
