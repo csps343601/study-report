@@ -147,6 +147,11 @@ tr.bad td{color:var(--sub)}
     <input id="rHours" type="number" min="0.5" max="100" step="0.5" required>
     <label for="rNote">備註（選填）</label>
     <textarea id="rNote" rows="2" maxlength="200"></textarea>
+    <div id="rProofBox" hidden>
+      <label for="rProof" id="rProofLbl">研習證明</label>
+      <input id="rProof" type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png">
+      <span class="note" id="rProofHint"></span>
+    </div>
     <p class="dmsg" id="mReport" role="alert"></p>
     <div class="row"><button type="button" data-close>取消</button><button class="primary" id="okReport">送出回報</button></div>
   </form>
@@ -171,6 +176,8 @@ tr.bad td{color:var(--sub)}
     <input id="cTime" maxlength="100" placeholder="例：115年12月31日前">
     <label for="cNote">說明（選填）</label>
     <textarea id="cNote" rows="2" maxlength="300"></textarea>
+    <label for="cProof">研習證明</label>
+    <select id="cProof"><option value="none">不需要上傳</option><option value="optional">選填（老師可上傳）</option><option value="required">必填（未上傳不能送出）</option></select>
     <label class="chk"><input type="checkbox" id="cReq"> 必要研習</label>
     <label class="chk"><input type="checkbox" id="cRep"> 需要回報（老師可按「按此回報」）</label>
     <label class="chk"><input type="checkbox" id="cVis"> 顯示在首頁</label>
@@ -181,7 +188,7 @@ tr.bad td{color:var(--sub)}
 
 <script>
 // ★ 部署 Apps Script 後，把「網頁應用程式網址」貼在這裡
-const API_URL = 'https://script.google.com/macros/s/AKfycbz0DfjY8GHwWnHjZpOzzqrwl5n416bzVKmWwhTmjdOXYnYNAPRXk6ACLayMa78Z8OmF/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbz9_sYrdifwWuDy80G3IIY_D6yXncBDiLWHQaOJJRVFUJ0na25vRD3euV0y0hi8ujcK/exec';
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -196,7 +203,7 @@ const store = {
 
 const state = {
   token: store.get('token'), user: null, courses: [], pending: null, current: null,
-  mine: new Set(), view: 'list',
+  mine: new Map(), view: 'list',
   admin: { data: null, tab: 'courses', cid: null },
   imp: { text: '', overwrite: true, rows: [], result: null }
 };
@@ -216,7 +223,7 @@ async function api(action, data = {}) {
   return j;
 }
 
-function clearSession(){ state.token = null; state.user = null; state.mine = new Set(); state.view = 'list'; state.admin.data = null; store.del('token'); store.del('user'); }
+function clearSession(){ state.token = null; state.user = null; state.mine = new Map(); state.view = 'list'; state.admin.data = null; store.del('token'); store.del('user'); }
 function setMsg(t, err){ const m = $('#msg'); m.textContent = t; m.className = err ? 'err' : ''; }
 function dmsg(id, t, ok){ const m = $(id); m.textContent = t; m.className = 'dmsg' + (ok ? ' ok' : ''); }
 function today(){ const d = new Date(); return new Date(d - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); }
@@ -234,10 +241,12 @@ function render() {
   $('#viewAdmin').hidden = state.view !== 'admin';
   $('#list').innerHTML = state.courses.map(c => {
     const plat = safeUrl(c.platformUrl) ? `<a href="${esc(c.platformUrl)}" target="_blank" rel="noopener noreferrer">${esc(c.platform || '前往')}</a>` : esc(c.platform);
-    const tags = (c.required ? '<span class="tag must">必要</span>' : '') + (c.needReport ? '<span class="tag rep">要回報</span>' : '');
-    const mine = state.mine.has(c.id);
+    const proofTag = c.proof === 'required' ? '<span class="tag must">須附證明</span>' : c.proof === 'optional' ? '<span class="tag rep">可附證明</span>' : '';
+    const tags = (c.required ? '<span class="tag must">必要</span>' : '') + (c.needReport ? '<span class="tag rep">要回報</span>' : '') + proofTag;
+    const mine = state.mine.has(c.id), mineProof = mine && state.mine.get(c.id).hasProof;
+    const proofNote = mine && c.proof !== 'none' ? (mineProof ? '<span class="done">✓ 已上傳證明</span>' : `<span class="cnt" style="color:var(${c.proof === 'required' ? '--danger' : '--sub'})">尚未上傳證明</span>`) : '';
     const act = c.needReport
-      ? `<button class="primary" data-id="${esc(c.id)}">${mine ? '修改回報' : '按此回報'}</button>${mine ? '<span class="done">✓ 您已回報</span>' : ''}<span class="cnt">（${c.count} 人回報）</span>`
+      ? `<button class="primary" data-id="${esc(c.id)}">${mine ? '修改回報' : '按此回報'}</button>${mine ? '<span class="done">✓ 您已回報</span>' : ''}${proofNote}<span class="cnt">（${c.count} 人回報）</span>`
       : '<span class="cnt">不需回報</span>';
     return `<tr><td data-l="研習名稱"><strong>${esc(c.name)}</strong>${tags}${c.note ? `<span class="note">${esc(c.note)}</span>` : ''}</td>` +
       `<td data-l="研習平台">${plat}</td><td data-l="研習時間">${esc(c.time)}</td><td data-l="完成回報">${act}</td></tr>`;
@@ -256,7 +265,7 @@ async function loadCourses() {
 
 async function loadMine() {
   if (!state.user) return;
-  try { state.mine = new Set((await api('myReports')).reports.map(r => r.courseId)); render(); } catch (e) {}
+  try { state.mine = new Map((await api('myReports')).reports.map(r => [r.courseId, r])); render(); } catch (e) {}
 }
 
 function openReport(id) {
@@ -266,6 +275,11 @@ function openReport(id) {
   $('#rName').textContent = c.name;
   $('#rDate').value = today(); $('#rDate').max = today();
   $('#rHours').value = ''; $('#rNote').value = ''; dmsg('#mReport', '');
+  const has = state.mine.get(id)?.hasProof;
+  $('#rProofBox').hidden = c.proof === 'none';
+  $('#rProof').value = '';
+  $('#rProofLbl').textContent = c.proof === 'required' ? '研習證明（必填）' : '研習證明（選填）';
+  $('#rProofHint').textContent = (has ? '您已上傳過證明；不選檔案則保留原檔，重新選檔會取代它。' : '') + ' 可上傳 PDF、JPG、PNG（5MB 內），照片會自動縮小。';
   $('#dlgReport').showModal();
 }
 
@@ -298,16 +312,21 @@ $('#fLogin').addEventListener('submit', async e => {
   btn.disabled = false;
 });
 
+$('#rProof').addEventListener('change', () => dmsg('#mReport', ''));
+
 $('#fReport').addEventListener('submit', async e => {
   e.preventDefault();
   const date = $('#rDate').value, hours = Number($('#rHours').value);
   if (!date) return dmsg('#mReport', '請選擇完成日期');
   if (!(hours > 0 && hours <= 100)) return dmsg('#mReport', '請輸入正確的研習時數');
-  const btn = $('#okReport'); btn.disabled = true; dmsg('#mReport', '送出中…', true);
+  const c = state.current, file = $('#rProof').files[0];
+  if (c.proof === 'required' && !file && !state.mine.get(c.id)?.hasProof) return dmsg('#mReport', '此研習需要上傳研習證明');
+  const btn = $('#okReport'); btn.disabled = true; dmsg('#mReport', file ? '處理檔案並送出中…' : '送出中…', true);
   try {
-    const j = await api('report', { courseId: state.current.id, date, hours, note: $('#rNote').value });
+    const proof = (c.proof !== 'none' && file) ? await prepareProof(file) : null;
+    const j = await api('report', { courseId: c.id, date, hours, note: $('#rNote').value, proof });
     dmsg('#mReport', j.updated ? '已更新您的回報' : '回報完成，謝謝！', true);
-    state.mine.add(state.current.id);
+    state.mine.set(state.current.id, { hasProof: !!j.hasProof });
     await loadCourses();
     setTimeout(() => $('#dlgReport').close(), 900);
   } catch (err) { dmsg('#mReport', err.message); }
@@ -324,6 +343,30 @@ $('#btnMine').onclick = async () => {
       : '<tr><td colspan="4">尚無回報紀錄</td></tr>';
   } catch (e) { $('#mineList').innerHTML = `<tr><td colspan="4">${esc(e.message)}</td></tr>`; }
 };
+
+/* ───────────── 研習證明：檢查、縮圖、轉 base64 ───────────── */
+const MAX_PROOF = 5 * 1024 * 1024;
+function blobToBase64(blob) {
+  return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.onerror = () => rej(new Error('檔案讀取失敗')); r.readAsDataURL(blob); });
+}
+async function prepareProof(file) {
+  const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+  const isImg = /^image\/(jpeg|png)$/.test(file.type) || /\.(jpe?g|png)$/i.test(file.name);
+  if (!isPdf && !isImg) throw new Error('只接受 PDF、JPG、PNG 檔案');
+  let blob = file, name = file.name;
+  if (isImg) {   // 手機照片動輒 5MB 以上：縮到長邊 1800px、轉 JPEG，通常只剩幾百 KB
+    try {
+      const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
+      const k = Math.min(1, 1800 / Math.max(bmp.width, bmp.height));
+      const cv = document.createElement('canvas'); cv.width = Math.round(bmp.width * k); cv.height = Math.round(bmp.height * k);
+      const g = cv.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, cv.width, cv.height); g.drawImage(bmp, 0, 0, cv.width, cv.height);
+      blob = await new Promise(r => cv.toBlob(r, 'image/jpeg', 0.85));
+      name = name.replace(/\.\w+$/, '') + '.jpg';
+    } catch (e) { throw new Error('無法讀取這張圖片，請改用 JPG、PNG 或 PDF'); }
+  }
+  if (!blob || blob.size > MAX_PROOF) throw new Error('檔案超過 5MB，請縮小後再上傳');
+  return { name, data: await blobToBase64(blob) };
+}
 
 /* ───────────── CSV 匯出（加 BOM，Excel 開啟中文不亂碼） ───────────── */
 function toCsv(rows) {
@@ -386,7 +429,7 @@ function renderAdmin() {
 
 function tabCourses(d) {
   const rows = d.courses.map(c => {
-    const tags = (c.required ? '<span class="tag must">必要</span>' : '') + (c.needReport ? '<span class="tag rep">要回報</span>' : '') + (c.visible ? '' : '<span class="tag hide">已隱藏</span>');
+    const tags = (c.required ? '<span class="tag must">必要</span>' : '') + (c.needReport ? '<span class="tag rep">要回報</span>' : '') + (c.proof === 'required' ? '<span class="tag must">須附證明</span>' : c.proof === 'optional' ? '<span class="tag rep">可附證明</span>' : '') + (c.visible ? '' : '<span class="tag hide">已隱藏</span>');
     return `<tr><td data-l="研習名稱"><strong>${esc(c.name)}</strong>${tags}${c.note ? `<span class="note">${esc(c.note)}</span>` : ''}</td>` +
       `<td data-l="平台">${esc(c.platform)}</td><td data-l="時間">${esc(c.time)}</td>` +
       `<td data-l="回報人數">${c.needReport ? c.count : '—'}</td>` +
@@ -406,13 +449,15 @@ function tabStatus(d) {
   if (!list.some(c => c.id === state.admin.cid)) state.admin.cid = list[0].id;
   const c = list.find(x => x.id === state.admin.cid), s = statusOf(c.id);
   const opts = list.map(x => `<option value="${esc(x.id)}"${x.id === c.id ? ' selected' : ''}>${esc(x.name)}${x.visible ? '' : '（已隱藏）'}</option>`).join('');
-  const doneRows = s.done.map(u => `<tr><td data-l="姓名">${esc(u.name)}</td><td data-l="處室">${esc(u.unit)}</td><td data-l="完成日期">${esc(u.r.date)}</td><td data-l="時數">${esc(u.r.hours)}</td></tr>`).join('');
+  const hasP = c.proof !== 'none';
+  const proofCell = u => !hasP ? '' : `<td data-l="證明">${u.r.proof ? `<button class="sm" data-act="proof" data-id="${esc(c.id)}" data-acc="${esc(u.account)}">查看</button>` : `<span class="note" style="display:inline;color:var(--${c.proof === 'required' ? 'danger' : 'sub'})">未上傳</span>`}</td>`;
+  const doneRows = s.done.map(u => `<tr><td data-l="姓名">${esc(u.name)}</td><td data-l="處室">${esc(u.unit)}</td><td data-l="完成日期">${esc(u.r.date)}</td><td data-l="時數">${esc(u.r.hours)}</td>${proofCell(u)}</tr>`).join('');
   const todoRows = s.todo.map(u => `<tr><td data-l="姓名">${esc(u.name)}</td><td data-l="處室">${esc(u.unit)}</td><td data-l="帳號">${esc(u.account)}</td></tr>`).join('');
   const pct = s.total ? Math.round(s.done.length / s.total * 100) : 0;
   return `<div class="bar"><label for="selCourse" style="margin:0">選擇研習：</label><select id="selCourse" class="grow">${opts}</select></div>` +
     `<div class="stats"><div class="stat">應回報<b>${s.total}</b></div><div class="stat ok">已完成<b>${s.done.length}</b></div><div class="stat bad">未完成<b>${s.todo.length}</b></div><div class="stat">完成率<b>${pct}%</b></div></div>` +
     `<div class="bar"><button data-act="exp-done">匯出已完成名單</button><button data-act="exp-todo">匯出未完成名單</button><button data-act="exp-all">匯出全部（含狀態）</button></div>` +
-    `<div class="cols"><div><h3>已完成（${s.done.length}）</h3>${s.done.length ? `<table class="stack"><thead><tr><th>姓名</th><th>處室</th><th>完成日期</th><th>時數</th></tr></thead><tbody>${doneRows}</tbody></table>` : '<div class="empty">尚無人回報</div>'}</div>` +
+    `<div class="cols"><div><h3>已完成（${s.done.length}）</h3>${s.done.length ? `<table class="stack"><thead><tr><th>姓名</th><th>處室</th><th>完成日期</th><th>時數</th>${hasP ? '<th>證明</th>' : ''}</tr></thead><tbody>${doneRows}</tbody></table>` : '<div class="empty">尚無人回報</div>'}</div>` +
     `<div><h3>未完成（${s.todo.length}）</h3>${s.todo.length ? `<table class="stack"><thead><tr><th>姓名</th><th>處室</th><th>帳號</th></tr></thead><tbody>${todoRows}</tbody></table>` : '<div class="empty">全部都完成了 🎉</div>'}</div></div>`;
 }
 
@@ -532,9 +577,10 @@ async function doImport(btn) {
 function exportCourse(kind) {
   const c = state.admin.data.courses.find(x => x.id === state.admin.cid); if (!c) return;
   const s = statusOf(c.id), head = ['姓名', '帳號', '處室'];
-  const doneRow = u => [u.name, u.account, u.unit, '已完成', u.r.date, u.r.hours, u.r.note];
-  const todoRow = u => [u.name, u.account, u.unit, '未完成', '', '', ''];
-  const H = ['姓名', '帳號', '處室', '狀態', '完成日期', '時數', '備註'];
+  const pf = u => c.proof === 'none' ? '' : (u.r.proof ? '已上傳' : '未上傳');
+  const doneRow = u => [u.name, u.account, u.unit, '已完成', u.r.date, u.r.hours, u.r.note, pf(u)];
+  const todoRow = u => [u.name, u.account, u.unit, '未完成', '', '', '', ''];
+  const H = ['姓名', '帳號', '處室', '狀態', '完成日期', '時數', '備註', '證明'];
   if (kind === 'done') downloadCsv(c.name + '_已完成名單', [H, ...s.done.map(doneRow)]);
   else if (kind === 'todo') downloadCsv(c.name + '_未完成名單', [head, ...s.todo.map(u => [u.name, u.account, u.unit])]);
   else {
@@ -557,13 +603,29 @@ function exportMatrix() {
 function exportDetail() {
   const d = state.admin.data, unit = new Map(d.users.map(u => [u.account, u.unit]));
   downloadCsv('研習回報明細_' + today(), [
-    ['回報時間', '帳號', '姓名', '處室', '研習ID', '研習名稱', '完成日期', '時數', '備註'],
-    ...d.reports.map(r => [r.at, r.account, r.name, unit.get(r.account) || '', r.courseId, r.courseName, r.date, r.hours, r.note])
+    ['回報時間', '帳號', '姓名', '處室', '研習ID', '研習名稱', '完成日期', '時數', '備註', '證明'],
+    ...d.reports.map(r => [r.at, r.account, r.name, unit.get(r.account) || '', r.courseId, r.courseName, r.date, r.hours, r.note, r.proof ? '已上傳' : ''])
   ]);
 }
 
 function exportRoster() {
   downloadCsv('教師名單_' + today(), [['姓名', '帳號', '處室'], ...roster().map(u => [u.name, u.account, u.unit])]);
+}
+
+/* 查看證明：先開空白分頁（避免被擋彈出視窗），資料回來再導過去 */
+async function viewProof(courseId, account, btn) {
+  const w = window.open('', '_blank');
+  btn.disabled = true;
+  try {
+    const j = await api('getProof', { courseId, account });
+    const bin = atob(j.data), bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const url = URL.createObjectURL(new Blob([bytes], { type: j.mime }));
+    if (w) w.location.href = url;
+    else { const a = document.createElement('a'); a.href = url; a.download = j.name; document.body.appendChild(a); a.click(); a.remove(); }
+    setTimeout(() => URL.revokeObjectURL(url), 120000);
+  } catch (e) { if (w) w.close(); setMsg(e.message, true); }
+  btn.disabled = false;
 }
 
 /* 管理後台：事件委派 */
@@ -595,6 +657,7 @@ $('#adminBody').addEventListener('click', async e => {
     try { await api('deleteCourse', { courseId: c.id }); await refreshAdmin(); }
     catch (err) { setMsg(err.message, true); b.disabled = false; }
   }
+  else if (act === 'proof') viewProof(id, b.dataset.acc, b);
   else if (act === 'tpl') downloadCsv('教師名單匯入範本', [['帳號', '密碼', '姓名', '處室'], ['t001', '', '王小明', '教務處'], ['t002', 'abc12345', '李小華', '總務處']]);
   else if (act === 'imp-clear') { state.imp.text = ''; $('#impText').value = ''; updatePreview(); }
   else if (act === 'imp-go') doImport(b);
@@ -632,6 +695,7 @@ function openCourse(c) {
   $('#cReq').checked = c ? c.required : false;
   $('#cRep').checked = c ? c.needReport : true;
   $('#cVis').checked = c ? c.visible : true;
+  $('#cProof').value = c ? c.proof : 'none';
   dmsg('#mCourse', '');
   $('#dlgCourse').showModal();
 }
@@ -640,7 +704,7 @@ $('#fCourse').addEventListener('submit', async e => {
   const course = {
     id: editingId, name: $('#cName').value.trim(), platform: $('#cPlat').value.trim(), platformUrl: $('#cUrl').value.trim(),
     time: $('#cTime').value.trim(), note: $('#cNote').value.trim(),
-    required: $('#cReq').checked, needReport: $('#cRep').checked, visible: $('#cVis').checked
+    required: $('#cReq').checked, needReport: $('#cRep').checked, visible: $('#cVis').checked, proof: $('#cProof').value
   };
   if (!course.name) return dmsg('#mCourse', '請輸入研習名稱');
   const btn = $('#okCourse'); btn.disabled = true; dmsg('#mCourse', '儲存中…', true);
